@@ -1,0 +1,51 @@
+# TODO Also add east-west gateway to this installation
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  # defalt image does not support iptable manipulation on apple silicon - https://stackoverflow.com/questions/72073613/istio-installation-failed-apple-silicon-m1
+  hub: ghcr.io/resf/istio
+  meshConfig:
+    defaultConfig:
+      proxyMetadata:
+        # Enable Istio agent to handle DNS requests for known hosts
+        # Unknown hosts will automatically be resolved using upstream dns servers in resolv.conf
+        ISTIO_META_DNS_CAPTURE: "true"
+  values:
+    pilot:
+      resources:
+        requests:
+          cpu: 20m
+          memory: 128Mi
+    global:
+      meshID: admiral1
+      multiCluster:
+        clusterName: admiral1
+      network: admiral1
+      proxy:
+        resources:
+          requests:
+            cpu: 20m
+            memory: 64Mi
+          limits:
+            cpu: 80m
+            memory: 256Mi
+  components:
+    ingressGateways:
+      - name: istio-eastwestgateway
+        label:
+          istio: eastwestgateway
+          app: istio-eastwestgateway
+        enabled: true
+        k8s:
+          env:
+            # sni-dnat adds the clusters required for AUTO_PASSTHROUGH mode
+            - name: ISTIO_META_ROUTER_MODE
+              value: "sni-dnat"
+          service:
+            ports:
+              - name: status-port
+                port: 15021
+                targetPort: 15021
+              - name: tls
+                port: 15443
+                targetPort: 15443
